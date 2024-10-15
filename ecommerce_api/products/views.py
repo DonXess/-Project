@@ -14,6 +14,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['category', 'stock_quantity']
+    search_fields = ['name', 'description']
+    ordering_fields = ['price', 'created_date']
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -43,6 +47,18 @@ class ProductViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Image not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({'error': 'Image ID not provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
+        
+        return queryset
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
