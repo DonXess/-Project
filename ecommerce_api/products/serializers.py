@@ -55,6 +55,40 @@ class ProductSerializer(serializers.ModelSerializer):
         
         return instance
 
+class ProductSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)
+    uploaded_images = serializers.ListField(
+        child=serializers.ImageField(allow_empty_file=False, use_url=False),
+        write_only=True,
+        required=False
+    )
+
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'description', 'price', 'category', 'stock_quantity', 'created_date', 'user', 'images', 'uploaded_images']
+        read_only_fields = ['user', 'created_date']
+
+    def create(self, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        product = Product.objects.create(**validated_data)
+        
+        for image in uploaded_images:
+            ProductImage.objects.create(product=product, image=image)
+        
+        return product
+
+    def update(self, instance, validated_data):
+        uploaded_images = validated_data.pop('uploaded_images', [])
+        
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        for image in uploaded_images:
+            ProductImage.objects.create(product=instance, image=image)
+        
+        return instance
+
 class ReviewSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     product = serializers.PrimaryKeyRelatedField(read_only=True)
